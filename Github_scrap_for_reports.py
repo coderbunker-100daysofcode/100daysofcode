@@ -1,21 +1,26 @@
+import os
 import requests
 import json
-# from datetime import date
 import datetime
 import argparse
 import distutils.core
-import os
+from dotenv import load_dotenv
 
+load_dotenv()
 token=os.getenv("TOKEN")
+github_account=os.getenv("USER")
+
 
 def list_repos(user):
     num_tries = 0
-    repo_url=f'https://api.github.com/users/{user}/repos?token={token}'
+    repo_url=f'https://api.github.com/users/{user}/repos'
     while num_tries<3:
         try:
-            repos_full=requests.get(repo_url).json()
-            repositories=[dict['name'] for dict in repos_full if dict['private']==False]
-            return repositories
+            repos_full=requests.get(repo_url, auth=(github_account,token)).json()
+            # repositories=[dict['name'] for dict in repos_full if dict['private']==False and dict['fork']==False]
+            languages={dict['name']:dict['language'] for dict in repos_full if dict['private']==False and dict['fork']==False} 
+            repositories=languages.keys()
+            return repositories,languages
         except ValueError:
             num_tries += 1
             if num_tries<3:
@@ -24,13 +29,14 @@ def list_repos(user):
 
 def weekly_stats(user,repo):
     num_tries = 0
-    stats_url=f'https://api.github.com/repos/{user}/{repo}/stats/contributors?token={token}'
+    stats_url=f'https://api.github.com/repos/{user}/{repo}/stats/contributors'
     while num_tries<3:
         try:
-            stats=requests.get(stats_url).json()
-            stats_user=[(dict['weeks'][0]['w'], dict['weeks'][0]['a'],dict['weeks'][0]['d']) for dict in stats if dict['author']['login']=='ansufei']
-            if not stats_user==[]:
-                return stats_user[0]
+            stats=requests.get(stats_url, auth=(github_account,token)).json()
+            if not stats==[]:
+                stats_user=[(dict['weeks'][-1]['w'], dict['weeks'][-1]['a'],dict['weeks'][-1]['d']) for dict in stats if dict['author']['login']==user]
+                if not stats_user==[]:
+                    return stats_user[0]
             else:
                 return (0,0,0)
         except ValueError:
@@ -39,29 +45,12 @@ def weekly_stats(user,repo):
                 print("Weekly statistics URL failed. Will retry...")
     raise RuntimeError("Error: Daily statistics URL failed.")
 
-
-def daily_stats(user,repo):
+def daily_stats(user):
     num_tries = 0
-    stats_url= f'https://api.github.com/repos/{user}/{repo}/stats/punch_card?token={token}'
+    stats_url = f'https://github-contributions-api.now.sh/v1/{user}'
     while num_tries<3:
         try:
-            stats=requests.get(stats_url).json()
-            today=datetime.date.today().weekday()
-            stats_user=[stats[i][2] for i in range(0,168) if stats[i][0]==today]
-            return sum(stats_user)
-        except ValueError:
-            num_tries += 1
-            if num_tries<3:
-                print("Daily statistics URL failed. Will retry...")
-    raise RuntimeError("Error: Daily statistics URL failed.")
-
-def daily_stats1(user,repo):
-    num_tries = 0
-    URL = "https://github-contributions-api.now.sh/v1/"
-    stats_url = URL + user + f'?format=nested&token={token}'
-    while num_tries<3:
-        try:
-            stats=requests.get(stats_url).json()
+            stats=requests.get(stats_url, auth=(github_account,token)).json()
             today = datetime.date.today()
             contribution = stats['contributions']['contributions'][str(today.year)][str(today.month)][str(today.day-1)]['count']
             return contribution
@@ -76,31 +65,29 @@ def main(participants,daily=False,weekly=False):
     list_commits=[]
     list_additions=[]
     list_deletions=[]
+    leaderboard={}
     for owner in participants:
-        print(owner)
         user_commits=0
         user_additions=0
         user_deletions=0
-        for repo in list_repos(owner):
-            print(repo)
-            if weekly:
+        if daily:
+            print(f'Daily commits for {owner}:')
+            list_commits.append(daily_stats(owner))
+        repos,languages=list_repos(owner)
+        if weekly:
+            print(f'Weekly additions and deletions by repository for {owner}:')
+            for repo in repos:
                 week,additions,deletions=weekly_stats(owner,repo)
-                print(additions,deletions)
+                print(repo, languages[repo],'additions:',additions,'deletions:',deletions)
                 user_additions+=additions
                 user_deletions+=deletions
-            if daily:
-                commits=daily_stats(owner,repo)
-                user_commits+=commits
         list_additions.append(user_additions)
         list_deletions.append(user_deletions)
-        list_commits.append(user_commits)
     return participants, list_commits, list_additions,list_deletions
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--participants', help='List of brand names in order (space separated)', nargs='+', required=True)
-    #parser.add_argument('--daily', help='Will generate statistics for the daily report', type=bool, required=False)
-    #parser.add_argument('--weekly', help='Will generate statistics for the weekly report', type=bool, required=False)
     parser.add_argument('--daily', dest='daily', help='Will generate statistics for the daily report', type=lambda x:bool(distutils.util.strtobool(x)))
     parser.add_argument('--weekly', dest='weekly', help='Will generate statistics for the weekly report', type=lambda x:bool(distutils.util.strtobool(x)))
 

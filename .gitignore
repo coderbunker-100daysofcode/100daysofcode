@@ -1,3 +1,16 @@
+#ide
+.idea
+
+#virtualenv
+venv/
+cenv/
+
+#output files
+languages.pkl
+leaderboard_*.csv
+
+#config
+/.env
 Github accounts.md
 github_accounts.txt
 message.txt

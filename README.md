@@ -37,5 +37,25 @@ https://code.visualstudio.com/docs/editor/versioncontrol
 	* What you’re working on
 	* What you might need help on in the future
 
+## Run the tracker
+Requirements:
+- dotenv (with conda: conda install -c conda-forge python-dotenv)
+- pandas
+- matplotlib
+
+To overcome the GitHub API rate limit without authentication (50 requests / hour), create a personal access token from your [profile settings](https://github.com/settings/tokens): click on 'generate new token'. Copy the token into an .env file:
+TOKEN=your_new_token
+USER=your_github_username
+Do not commit this .env file to github. Protect your token as you would protect a password.
+
+You can run the code through the terminal using the command:
+python Github_scrap_for_reports.py --participants username1 username2 --weekly 1 --daily 1
+All arguments are optional. But if you don't specify either weekly or daily no report will be generated.
+Instead of entering the list of participants through the command line, you can greate a github_account.txt file containing github usernames + real names (or wechat usernames) as follows:
+github_username1, wechat_username1
+github_username2, wechat_username2
+
+
 # Others
 Any comments or questions? Let us know the WeChat group!
+
